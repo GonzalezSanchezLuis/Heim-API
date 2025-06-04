@@ -1,7 +1,6 @@
 package com.heim.api.users.application.dto;
 
-import com.heim.api.ScheduleMove.application.dto.MovingResponse;
-import com.heim.api.ScheduleMove.domain.entity.ReservationMoving;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,7 +19,6 @@ public class UserResponse {
     private String role;
     private String createdAt;
     private boolean active;
-    private List<MovingResponse> reservationMovingList = new ArrayList<>();
 
 
     public UserResponse(
@@ -30,8 +28,7 @@ public class UserResponse {
             String role,
             String phone,
             String urlAvatarProfile,
-            String document,
-            List<ReservationMoving> reservationMovingList) {
+            String document) {
     }
 
     public UserResponse(Long userId,

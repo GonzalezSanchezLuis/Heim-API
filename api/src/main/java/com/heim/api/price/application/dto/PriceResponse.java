@@ -1,23 +1,27 @@
 package com.heim.api.price.application.dto;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public class PriceResponse {
-    private BigDecimal price;
-    private String formattedPrice;
-    private double distanceKm;
-    private double timeMin;
-    private String formattedDistance;
-    private String formattedDuration;
-    private List<Map<String, Double>> route;
+    private final BigDecimal price;
+    private final String formattedPrice;
+    private final double distanceKm;
+    private final double timeMin;
+    private final String formattedDistance;
+    private final String formattedDuration;
+    private final List<Map<String, Double>> route;
 
     public PriceResponse(BigDecimal price,double distanceKm, double timeMin, List<Map<String, Double>> route) {
         this.price = price;
-        this.formattedPrice = NumberFormat.getNumberInstance(new Locale("es", "CO")).format(price) + " COP";
+        DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(Locale.ENGLISH);
+        DecimalFormat decimalFormat = new DecimalFormat("#0.00", symbols);
+        this.formattedPrice = decimalFormat.format(price);
         this.distanceKm = distanceKm;
         this.timeMin = timeMin;
         this.formattedDistance = String.format("%.1f km", distanceKm);

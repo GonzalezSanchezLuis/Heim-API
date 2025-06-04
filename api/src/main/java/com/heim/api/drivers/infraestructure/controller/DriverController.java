@@ -3,6 +3,8 @@ package com.heim.api.drivers.infraestructure.controller;
 import com.heim.api.drivers.application.dto.*;
 import com.heim.api.drivers.application.service.DriverService;
 import com.heim.api.hazelcast.service.HazelcastGeoService;
+import com.heim.api.trip.application.service.TripService;
+import com.heim.api.trip.domain.entity.Trip;
 import com.heim.api.users.infraestructure.exceptions.EmailAlreadyRegisteredException;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -14,18 +16,24 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
+
 @RestController
-@RequestMapping("/api/v1/drivers/")
+@RequestMapping("/api/v1/drivers")
 @CrossOrigin("*")
 public class DriverController {
-    private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DriverController.class);
     private final DriverService driverService;
-    private final HazelcastGeoService hazelcastGeoService;
+    private final TripService tripService;
+
 
     @Autowired
-    public  DriverController(DriverService driverService, HazelcastGeoService hazelcastGeoService){
+    public  DriverController(DriverService driverService,
+                             HazelcastGeoService hazelcastGeoService,
+                             TripService tripService){
+
         this.driverService = driverService;
-        this.hazelcastGeoService = hazelcastGeoService;
+        this.tripService  = tripService;
     }
 
     private static final String SUCCESS = "success";
@@ -48,7 +56,7 @@ public class DriverController {
         }
     }
 
-    @GetMapping("driver/{driverId}")
+    @GetMapping("/driver/{driverId}")
     public ResponseEntity<DriverResponse> getDriverById(@PathVariable Long driverId) {
         try {
             // Obtener el usuario usando el servicio
@@ -63,7 +71,7 @@ public class DriverController {
         }
     }
 
-    @PutMapping("update/{driverId}")
+    @PutMapping("/update/{driverId}")
     public ResponseEntity<DriverResponse> updatedDriverData(@PathVariable Long driverId, @RequestBody DriverRequest driverRequest) {
         try {
             if (driverRequest == null) {
@@ -85,7 +93,7 @@ public class DriverController {
         }
     }
 
-    @DeleteMapping("delete/{driverId}")
+    @DeleteMapping("/delete/{driverId}")
     public ResponseEntity<String> driverDelete(@PathVariable Long driverId) {
         try {
             driverService.driverDelete(driverId);
@@ -97,14 +105,21 @@ public class DriverController {
         }
     }
 
-    @PutMapping("/status/{driverId}")
+    @PutMapping("/connect/{driverId}")
     public ResponseEntity<Map<String, String>> updateStatus(@PathVariable Long driverId,
-                                                            @Valid @RequestBody DriverStatusRequest request) {
+                                                             @RequestBody DriverStatusRequest request) {
         driverService.updateDriverStatus(driverId, request);
         logger.info("🔄 Estado actualizado para el conductor {}", driverId);
-
         return ResponseEntity.ok(buildResponse(SUCCESS, STATUS_UPDATED));
     }
+
+    @PutMapping("/location/{driverId}")
+    public ResponseEntity<Map<String, String>> updateDriverLocation(@RequestBody DriverUpdateLocationRequest request,@PathVariable Long driverId) {
+        driverService.updateDriverLocation(request, driverId);
+        logger.info("📍 Ubicación actualizada para el conductor {}", driverId);
+        return ResponseEntity.ok(buildResponse(SUCCESS, "Ubicación actualizada correctamente"));
+    }
+
 
     @PutMapping("/disconnected/{driverId}")
     public ResponseEntity<Map<String, String>> disconnectedStatus(@PathVariable Long driverId,
@@ -115,12 +130,19 @@ public class DriverController {
         return ResponseEntity.ok(buildResponse(SUCCESS, DISCONNECTED_SUCCESS));
     }
 
-    @GetMapping("/status/{driverId}")
+    @GetMapping("/get/status/{driverId}")
     public ResponseEntity<DriverStatusResponse> getDriverStatus(@PathVariable Long driverId) {
         DriverStatusResponse response = driverService.getDriverStatus(driverId);
         return ResponseEntity.ok(response);
     }
 
+
+
+    @GetMapping("/driver/trip/{tripId}")
+    public ResponseEntity<Trip> getTripForDriver(@PathVariable Long tripId, @RequestParam Long driverId ){
+        Optional<Trip> tripOptional = tripService.getTripForDriver(tripId, driverId);
+        return tripOptional.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
 
 
     private Map<String, String> buildResponse(String status, String message) {

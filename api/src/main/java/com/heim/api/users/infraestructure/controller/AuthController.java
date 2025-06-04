@@ -22,8 +22,8 @@ public class AuthController {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private DriverRepository driverRepository;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
 
     @PostMapping("auth")
     public ResponseEntity<?> authenticateUser(@RequestBody Map<String, String> request, HttpSession session) {
@@ -32,63 +32,28 @@ public class AuthController {
 
         // Intentar autenticar como usuario
         Optional<User> userOptional = userRepository.findByEmail(email);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            return authenticateAndRespond(user, password, session);
+        if (userOptional.isEmpty()) {
+            return generateErrorResponse("No dudamos que eres tú, pero no reconocemos tu email", HttpStatus.NOT_FOUND);
+
         }
 
-        // Intentar autenticar como conductor
-        Optional<Driver> driverOptional = driverRepository.findDriverByEmail(email);
-        if (driverOptional.isPresent()) {
-            Driver driver = driverOptional.get();
-            return authenticateAndRespond(driver, password, session);
+        User user = userOptional.get();
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            return generateErrorResponse("No dudamos que eres tú, pero no reconocemos tu contraseña", HttpStatus.UNAUTHORIZED);
         }
 
-        // Si no se encuentra ni como usuario ni como conductor, devolver error
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "No dudamos que eres tú, pero no reconocemos tu email");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        session.setAttribute("userId", user.getUserId());
+        session.setAttribute("role", user.getRole());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("userId", user.getUserId());
+        response.put("role", user.getRole());
+
+        return ResponseEntity.ok(response);
     }
 
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    private ResponseEntity<?> authenticateAndRespond(Object user, String password, HttpSession session) {
-        if (user instanceof User) {
-            User u = (User) user;
-
-            if (!passwordEncoder.matches(password, u.getPassword())) {
-                return generateErrorResponse("No dudamos que eres tú, pero no reconocemos tu contraseña", HttpStatus.UNAUTHORIZED);
-            }
-
-            session.setAttribute("userId", u.getUserId());
-            session.setAttribute("role", u.getRole());
-
-            Map<String, Object>  response = new HashMap<>();
-            response.put("userId",u.getUserId());
-            response.put("role", u.getRole());
-
-            return ResponseEntity.ok(response);
-
-        } else if (user instanceof Driver) {
-            Driver d = (Driver) user;
-
-            if (!passwordEncoder.matches(password, d.getPassword())) {
-                return generateErrorResponse("No dudamos que eres tú, pero no reconocemos tu contraseña", HttpStatus.UNAUTHORIZED);
-            }
-
-            session.setAttribute("userId", d.getDriverId());
-            session.setAttribute("role", d.getRole());
-
-            Map<String, Object>  response = new HashMap<>();
-            response.put("userId",d.getDriverId());
-            response.put("role", d.getRole());
-
-
-            return ResponseEntity.ok(response);
-        }
-
-        return generateErrorResponse("No dudamos que eres tú, pero no reconocemos tu email", HttpStatus.NOT_FOUND);
-    }
 
     private ResponseEntity<Map<String, String>> generateErrorResponse(String message, HttpStatus status) {
         Map<String, String> response = new HashMap<>();

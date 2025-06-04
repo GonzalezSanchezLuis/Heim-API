@@ -19,10 +19,6 @@ import java.util.Map;
 @Service
 public class PriceService {
 
-    private final double RATE_BASE  = 40.000;
-    private final double COST_BY_KM = 1.500;
-    private final double COST_BY_MIN = 800;
-
     @Value("${google.maps.api-key}")
     private String apikey;
 
@@ -69,6 +65,9 @@ public class PriceService {
             double distanceKm = element.getJSONObject("distance").getDouble("value") / 1000.0;
             double timeMin = element.getJSONObject("duration").getDouble("value") / 60.0;
 
+            double RATE_BASE = 40.000;
+            double COST_BY_KM = 1.500;
+            double COST_BY_MIN = 800;
             double calculatedPrice = RATE_BASE + (COST_BY_KM * distanceKm) + (COST_BY_MIN * timeMin);
             BigDecimal finalPrice = BigDecimal.valueOf(calculatedPrice).setScale(2, RoundingMode.HALF_UP);
 

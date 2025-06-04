@@ -1,7 +1,7 @@
 package com.heim.api.users.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.heim.api.ScheduleMove.domain.entity.ReservationMoving;
+import com.heim.api.drivers.domain.entity.Driver;
 import com.heim.api.trip.domain.entity.Trip;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -30,17 +30,20 @@ public class User {
     private LocalDateTime createdAt;
     private boolean isActive;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Driver driver;
+
+
     @PrePersist
     public void prePersist(){
         createdAt = LocalDateTime.now();
     }
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private List<ReservationMoving> reservationMovingList = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL) // Relación con Trip
     private List<Trip> trips = new ArrayList<>();
+
+
 
     @Override
     public String toString() {

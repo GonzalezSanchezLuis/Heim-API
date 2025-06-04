@@ -1,6 +1,6 @@
 package com.heim.api.users.application.service;
 
-import com.heim.api.hazelcast.service.HazelcastGeoService;
+import com.heim.api.fcm.application.service.FcmTokenService;
 import com.heim.api.users.application.dto.UserRequest;
 import com.heim.api.users.application.dto.UserResponse;
 import com.heim.api.users.application.mapper.UserMapper;
@@ -11,8 +11,6 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
@@ -22,16 +20,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final BCryptPasswordEncoder bcryptPasswordEncoder;
-    private final HazelcastGeoService hazelcastGeoService;
+    private  final FcmTokenService fcmTokenService;
 
     @Autowired
     public UserService(UserRepository userRepository, UserMapper userMapper,
                        BCryptPasswordEncoder bcryptPasswordEncoder,
-                       HazelcastGeoService hazelcastGeoService) {
+                       FcmTokenService fcmTokenService) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.bcryptPasswordEncoder = bcryptPasswordEncoder;
-        this.hazelcastGeoService = hazelcastGeoService;
+        this.fcmTokenService = fcmTokenService;
     }
 
 
@@ -48,9 +46,8 @@ public class UserService {
             newUser.setRole("USER");
 
             //System.out.println("Mapped User: " + newUser);
+
             return  userMapper.toResponse(userRepository.save(newUser));
-
-
         }
     }
 
@@ -81,11 +78,6 @@ public class UserService {
     public void userDelete(Long userId){
         User userToDelete = userRepository.findById(userId).orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
         userRepository.delete(userToDelete);
-
     }
 
-
-    public List<Long> findNearbyDrivers(double latitude, double longitude) {
-        return hazelcastGeoService.findNearbyDriversDynamically(latitude, longitude);
-    }
 }

@@ -9,13 +9,25 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface DriverMapper {
 
-    @Mapping(target = "driverId", ignore = true)
-    @Mapping(target = "createdAt", source ="createdAt")
-    @Mapping(target = "active", source = "active")
+
+    @Mapping(target = "driverId", source = "id")
+    @Mapping(target = "fullName", source = "user.fullName")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "password", source = "user.password")
+    @Mapping(target = "document", source = "user.document")
+    @Mapping(target = "phone", source = "user.phone")
+    @Mapping(target = "urlAvatarProfile", source = "user.urlAvatarProfile")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "active", source = "user.active")
+    @Mapping(target = "createdAt", source = "createdAt")
     DriverResponse toResponse(Driver driver);
 
-    @Mapping(target = "driverId", ignore = true) // Se ignora porque es autogenerado
+
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "active", source = "active", ignore = true)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "trips", ignore = true)
+   // @Mapping(target = "active", ignore = true)
     Driver toEntity(DriverRequest driverRequest);
 }

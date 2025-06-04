@@ -14,9 +14,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.stream;
-
-
 @Service
 @Slf4j
 public class HazelcastGeoService {
@@ -55,7 +52,7 @@ public class HazelcastGeoService {
 
     public List<Long> findNearbyDriversDynamically(double latitude, double longitude) {
         log.info("📌 Conductores registrados en Hazelcast: {}", driverLocations.size());
-        double radiusKm = 1.0; // Radio inicial de búsqueda
+        double radiusKm = 0.01; // Radio inicial de búsqueda
         log.info("📡 Buscando conductores desde {} km", radiusKm);
         int minDrivers = 3; // Mínimo de conductores a encontrar
         double maxRadius = 8.0; // Radio máximo permitido
@@ -66,7 +63,6 @@ public class HazelcastGeoService {
             radiusKm += 5; // Incremento en pasos de 5 km
             drivers = findNearbyDrivers(latitude, longitude, radiusKm);
         }
-
         return drivers;
     }
 
@@ -95,7 +91,7 @@ public class HazelcastGeoService {
     private boolean isDriverConnected(Long driverId) {
         Driver driver = driverRepository.findById(driverId).orElse(null);
         log.info("🔍 Verificando estado del conductor {}: {}", driverId, driver != null ? driver.getStatus() : "No encontrado");
-        return driver != null && "CONNECTED".equals(driver.getStatus());
+        return false;
     }
 
 
@@ -121,5 +117,16 @@ public class HazelcastGeoService {
         log.info("📏 Distancia entre ({}, {}) y ({}, {}): {} km",
                 latitude, longitude, location.getLatitude(), location.getLongitude(), distanceKm);
         return distanceKm;
+    }
+
+    public  GeoLocation getDriverLocation(Long driverId){
+        GeoLocation location = driverLocations.get(driverId);
+
+        if (location != null){
+            log.info("📍 Ubicación encontrada para el conductor {}: ({}, {})", driverId, location.getLatitude(), location.getLongitude());
+        }else {
+            log.warn("⚠️ No se encontró ubicación para el conductor {}", driverId);
+        }
+        return  location;
     }
 }

@@ -5,7 +5,11 @@ import com.heim.api.drivers.application.mapper.DriverMapper;
 import com.heim.api.drivers.domain.entity.Driver;
 import com.heim.api.drivers.domain.enums.DriverStatus;
 import com.heim.api.drivers.infraestructure.repository.DriverRepository;
+import com.heim.api.fcm.domain.entity.FcmToken;
+import com.heim.api.fcm.infraestructure.repository.FcmTokenRepository;
 import com.heim.api.hazelcast.service.HazelcastGeoService;
+import com.heim.api.users.domain.entity.User;
+import com.heim.api.users.infraestructure.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.crossstore.ChangeSetPersister;
@@ -23,36 +27,57 @@ public class DriverService {
     private static final Logger logger = LoggerFactory.getLogger(DriverService.class);
     private final DriverRepository driverRepository;
     private final DriverMapper driverMapper;
-    private final BCryptPasswordEncoder bcryptPasswordEncoder;
     private final HazelcastGeoService hazelcastGeoService;
+    private final UserRepository userRepository;
+    private final FcmTokenRepository fcmTokenRepository;
 
     @Autowired
-    public DriverService(@Lazy DriverRepository driverRepository,
-                         DriverMapper driverMapper,
-                         BCryptPasswordEncoder bCryptPasswordEncoder,
-                         HazelcastGeoService hazelcastGeoService){
+    public DriverService(
+            DriverRepository driverRepository,
+            DriverMapper driverMapper,
+            HazelcastGeoService hazelcastGeoService,
+            UserRepository  userRepository,
+            FcmTokenRepository fcmTokenRepository){
         this.driverMapper = driverMapper;
-        this.driverRepository = driverRepository;
-        this.bcryptPasswordEncoder = bCryptPasswordEncoder;
         this.hazelcastGeoService = hazelcastGeoService;
+        this.userRepository = userRepository;
+        this.driverRepository= driverRepository;
+        this.fcmTokenRepository =  fcmTokenRepository;
 
     }
 
     public DriverResponse registerDriver(DriverRequest driverRequest) throws Exception {
-        Optional<Driver> existingDriver = driverRepository.findDriverByEmail(driverRequest.getEmail());
-        if (existingDriver.isPresent()) {
-            throw new Exception("Ya existe un usuario registrado con ese email.");
-        } else {
-            String encodePassword = bcryptPasswordEncoder.encode(driverRequest.getPassword());
-            driverRequest.setPassword(encodePassword);
-            Driver newDriver = driverMapper.toEntity(driverRequest);
-            newDriver.setActive(false);
-            newDriver.setRole("DRIVER");
-
-            System.out.println("Mapped driver: " + newDriver);
-            return driverMapper.toResponse(driverRepository.save(newDriver));
-
+        Optional<User> userOptional = userRepository.findById(driverRequest.getUserId());
+        if (userOptional.isEmpty()) {
+            throw new Exception("No existe un usuario con ese ID.");
         }
+
+        User user = userOptional.get();
+
+        // Verificar si ya existe un conductor para este usuario
+        Optional<Driver> existingDriver = driverRepository.findByUserId(driverRequest.getUserId());
+        if (existingDriver.isPresent()) {
+            throw new Exception("Este usuario ya está registrado como conductor.");
+        }
+
+           user.setRole("DRIVER");
+           user.setActive(false);
+
+            Driver newDriver = driverMapper.toEntity(driverRequest);
+            newDriver.setStatus(DriverStatus.DISCONNECTED);
+            newDriver.setUser(user);
+
+            fcmTokenRepository.findByOwnerIdAndOwnerType(user.getUserId(), FcmToken.OwnerType.USER).ifPresent(
+                    fcmToken -> {
+                        fcmToken.setOwnerType(FcmToken.OwnerType.DRIVER);
+                        fcmTokenRepository.save(fcmToken);
+                    }
+            );
+
+           Driver savedDriver = driverRepository.save(newDriver);
+
+        System.out.println("Mapped driver: " + newDriver);
+        return driverMapper.toResponse(savedDriver);
     }
 
     public DriverResponse getDriverById(Long driverId) throws NoSuchElementException {
@@ -63,16 +88,11 @@ public class DriverService {
     public DriverResponse updatedDriverData(Long driverId, DriverRequest driverRequest) {
         // Buscar el usuario por ID
         Driver driver = driverRepository.findById(driverId).orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
-        if(driverRequest.getPassword() != null && !driverRequest.getPassword().isEmpty()){
-            driver.setPassword(bcryptPasswordEncoder.encode(driverRequest.getPassword()));
-        }
-        driver.setFullName(driverRequest.getFullName());
-        driver.setEmail(driverRequest.getEmail());
-        driver.setPhone(driverRequest.getPhone());
+
+
         driver.setVehicleType(driverRequest.getVehicleType());
         driver.setEnrollVehicle(driverRequest.getEnrollVehicle());
-        driver.setDocument(driverRequest.getDocument());
-        driver.setUrlAvatarProfile(driverRequest.getUrlAvatarProfile());
+
 
 
         driverRepository.save(driver);
@@ -119,18 +139,16 @@ public class DriverService {
     }
 
 
-
-
     private Driver findDriverById(Long driverId) {
         return driverRepository.findById(driverId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Driver not found"));
     }
 
 
-    public DriverStatusResponse getDriverStatus(Long driverId){
-        Driver driver = driverRepository.findById(driverId).orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
-        return new DriverStatusResponse(driver.getDriverId(), driver.getStatus().name());
-
+    public DriverStatusResponse getDriverStatus(Long userId){
+        Driver driver = driverRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
+        logger.info("estado delcondcutor" +driver.getStatus());
+        return new DriverStatusResponse(driver.getId(), driver.getStatus());
     }
 
 
@@ -139,6 +157,19 @@ public class DriverService {
         return driver != null && driver.getStatus() == DriverStatus.CONNECTED;
 
     }
+
+    public void updateDriverLocation(DriverUpdateLocationRequest driverUpdateLocationRequest, Long driverId) {
+        Double latitude = driverUpdateLocationRequest.getLatitude();
+        Double longitude = driverUpdateLocationRequest.getLongitude();
+
+        if (latitude != null && longitude != null) {
+            hazelcastGeoService.updateDriverLocation(driverId, latitude, longitude);
+            logger.info("✅ Ubicación almacenada en Hazelcast para el conductor {} -> ({}, {})", driverId, latitude, longitude);
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coordenadas no proporcionadas para conductor conectado");
+        }
+    }
+
 
 
     private void handleDriverLocation(Long driverId, DriverStatus status, Double latitude, Double longitude) {
@@ -154,5 +185,7 @@ public class DriverService {
             logger.info("🚫 Ubicación eliminada de Hazelcast para el conductor {}", driverId);
         }
     }
+
+
 
 }

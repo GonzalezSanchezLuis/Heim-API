@@ -21,8 +21,6 @@ import java.util.NoSuchElementException;
 public class UserController {
     private final UserService userService;
 
-
-
     @Autowired
     public  UserController(UserService userService){
         this.userService = userService;
@@ -100,13 +98,6 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Se produjo un error al procesar la solicitud");
         }
-    }
-
-    @GetMapping("/drivers/nearby")
-    public ResponseEntity<List<Long>> findNearbyDrivers(@RequestParam double latitude,
-                                                        @RequestParam double longitude) {
-        List<Long> nearbyDrivers = userService.findNearbyDrivers(latitude, longitude);
-        return ResponseEntity.ok(nearbyDrivers);
     }
 
 }

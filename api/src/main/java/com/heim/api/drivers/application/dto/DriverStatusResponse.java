@@ -6,13 +6,21 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class DriverStatusResponse {
-    private Long driverId;
-    private DriverStatus status;
+    private final  Long id;
+    private final DriverStatus status;
 
 
-    public DriverStatusResponse(Long driverId, String name) {
+    public DriverStatusResponse(Long id, DriverStatus status) {
+        this.id = id;
+        this.status = status;
+    }
+
+    public Long getDriverId() {
+        return id;
+    }
+
+    public DriverStatus getStatus() {
+        return status;
     }
 }
